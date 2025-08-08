@@ -3,12 +3,14 @@
 
 **GraphNet** is a large-scale dataset of deep learning **computation graphs**, designed to serve as a standard benchmark and training corpus for **AI-driven tensor compiler optimization**. It contains diverse graphs extracted from state-of-the-art models, enabling effective evaluation of compiler pass optimizations across frameworks and hardware platforms.
 
+
 With GraphNet, users can:
 1. Quickly benchmark the optimization performance of various compiler strategies.
 2. Easily conduct regression tests on existing compilers.
 3. Train AI‑for‑Systems models to automatically generate compiler optimization passes.
 
 **Vision**: We aim to achieve cross-hardware portability of compiler optimizations by allowing models to learn and transfer optimization strategies. It will significantly  reduce the manual effort required to develop efficient operator implementations.
+
 
 
 
