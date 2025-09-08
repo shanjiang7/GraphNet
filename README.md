@@ -97,6 +97,12 @@ python3 -m graph_net.torch.test_compiler \
 # Note: if --compiler is omitted, PyTorch’s built-in compiler is used by default
 ```
 
+After that, ```graph_net.torch.test_compiler``` processes as below:
+1. Running the original model in eager mode to record a baseline.
+2. Compiling the model with the specified backend (e.g., CINN, TorchInductor, TVM).
+3. Executing the compiled model and collecting its runtime and outputs.
+4. Conduct speedup by comparing the compiled results against the baseline.
+
 **Step 2: Analysis**
 
 After processing, we provide ```graph_net/analysis.py``` to generate [violin plot](https://en.m.wikipedia.org/wiki/Violin_plot) based on the JSON results.
@@ -107,7 +113,7 @@ python3 graph_net/analysis.py \
   --output-dir /path/to/save/output/figures/
 ```
 
-After executing, one summary plot of results on all compilers (as shown below in "Evaluation Results Example"), as well as multiple sub-plots of results in categories (model tasks, Library...) on a single compiler. 
+After executing, one summary plot of results on all compilers (as shown in "Evaluation Results Example"), as well as multiple sub-plots of results in categories (model tasks, Library...) on a single compiler. 
 
 The script is designed to process a file structure as ```/benchmark_path/compiler_name/category_name/``` (for example ```/benchmark_logs/paddle/nlp/```), and items on x-axis are identified by name of the folders. So you can modify  ```read_all_speedups``` function to fit the benchmark settings on your demand.
 
