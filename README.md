@@ -91,9 +91,9 @@ python -m graph_net.S_analysis \
 
 The scripts are designed to process a file structure as `/benchmark_path/category_name/`, and items on x-axis are identified by name of the sub-directories. After executing, several summary plots of result in categories (model tasks, libraries...) will be exported to `$GRAPH_NET_BENCHMARK_PATH`.
 
-### 🧱 Construction & Contribution Guide
+## 🧱 Construction & Contribution Guide
 Want to understand how GraphNet is built or contribute new samples?
-Check out the [Contributors Guide](./docs/README_contribute.md) for the extraction and validation pipeline.
+Check out the [Construction Guide](./docs/README_contribute.md) for details on the extraction and validation workflow.
 
 
 ## Future Roadmap
