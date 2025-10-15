@@ -6,7 +6,7 @@
 ![](https://img.shields.io/badge/version-v0.1-brightgreen)
 ![](https://img.shields.io/github/issues/PaddlePaddle/GraphNet?label=open%20issues)
 [![Documentation](https://img.shields.io/badge/documentation-blue)](./GraphNet_technical_report.pdf)
-<a href="https://img.shields.io/badge/微信-green?logo=wechat&amp"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
+<a href="https://github.com/user-attachments/assets/125e3494-25c9-4494-9acd-8ad65ca85d03"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
 </div>
 
 **GraphNet** is a large-scale dataset of deep learning **computation graphs**, built as a standard benchmark for **tensor compiler** optimization. It provides over 2.7K computation graphs extracted from state-of-the-art deep learning models spanning diverse tasks and ML frameworks. With standardized formats and rich metadata, GraphNet enables fair comparison and reproducible evaluation of the general optimization capabilities of tensor compilers, thereby supporting advanced research such as AI for System on compilers.
@@ -16,7 +16,7 @@
 - [2025-8-20] 🚀 The second round of [open contribution tasks](https://github.com/PaddlePaddle/Paddle/issues/74773) was released. (completed ✅)
 - [2025-7-30] 🚀 The first round of [open contribution tasks](https://github.com/PaddlePaddle/GraphNet/issues/44) was released.  (completed ✅)
 ## Benchmark Results
-We evaluate two representative tensor compiler backends, CINN (PaddlePaddle) and TorchInductor (PyTorch), on GraphNet's NLP and CV subsets. The evaluation adopts two quantitative metrics proposed in the [GraphNet Technical Report](./GraphNet_technical_report.pdf):
+We evaluate two representative tensor compiler backends, CINN (PaddlePaddle) and TorchInductor (PyTorch), on GraphNet's NLP and CV subsets. The evaluation adopts two quantitative metrics proposed in the [Technical Report](./GraphNet_technical_report.pdf):
 - **Speedup Score** S(t) — evaluates compiler performance under varying numerical tolerance levels.
 <div align="center">
   <img src="/pics/St-result.jpg" alt="Speedup Score S_t Results" width="80%">
@@ -91,66 +91,9 @@ python -m graph_net.S_analysis \
 
 The scripts are designed to process a file structure as `/benchmark_path/category_name/`, and items on x-axis are identified by name of the sub-directories. After executing, several summary plots of result in categories (model tasks, libraries...) will be exported to `$GRAPH_NET_BENCHMARK_PATH`.
 
-### 🧱 Contribute More Samples
-
-GraphNet provides automated tools for graph extraction and validation.
-
-<div align="center">
-<img src="/pics/graphnet_overview.jpg" alt="GraphNet Architecture Overview" width="65%">
-</div>
-
-**Demo: Extract & Validate ResNet‑18**
-```bash
-git clone https://github.com/PaddlePaddle/GraphNet.git
-cd GraphNet
-
-# Set your workspace directory
-export GRAPH_NET_EXTRACT_WORKSPACE=/home/yourname/graphnet_workspace/
-
-# Extract the ResNet‑18 computation graph
-python graph_net/test/vision_model_test.py
-
-# Validate the extracted graph (e.g. /home/yourname/graphnet_workspace/resnet18/)
-python -m graph_net.torch.validate \
-  --model-path $GRAPH_NET_EXTRACT_WORKSPACE/resnet18/
-```
-
-**Illustration – Extraction Workflow**
-
-<div align="center">
-<img src="/pics/dataset_composition.png" alt="GraphNet Extract Sample" width="65%">
-</div>
-
-* Source code of custom_op is required **only when** corresponding operator is used in the module, and **no specific format** is required.
-
-**Step 1: graph_net.torch.extract**
-
-Wrap the model with the extractor — that’s all you need:
-
-```bash
-import graph_net
-
-# Instantiate the model (e.g. a torchvision model)
-model = ...  
-
-# Extract your own model
-model = graph_net.torch.extract(name="model_name", dynamic="True")(model)
-```
-
-After running, the extracted graph will be saved to: `$GRAPH_NET_EXTRACT_WORKSPACE/model_name/`.
-
-For more details, see docstring of `graph_net.torch.extract` defined in `graph_net/torch/extractor.py`.
-
-**Step 2: graph_net.torch.validate**
-
-To verify that the extracted model meets requirements, we use `graph_net.torch.validate` in CI tool and also ask contributors to self-check in advance:
-
-```bash
-python -m graph_net.torch.validate \
-  --model-path $GRAPH_NET_EXTRACT_WORKSPACE/model_name
-```
-
-All the **construction constraints** will be examined automatically. After passing validation, a unique `graph_hash.txt` will be generated and later checked in CI procedure to avoid redundant.
+### 🧱 Construction & Contribution Guide
+Want to understand how GraphNet is built or contribute new samples?
+Check out the [Contributors Guide](./docs/README_contribute.md) for the extraction and validation pipeline.
 
 
 ## Future Roadmap
