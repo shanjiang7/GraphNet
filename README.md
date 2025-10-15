@@ -1,27 +1,99 @@
-# GraphNet  ![](https://img.shields.io/badge/version-v0.1-brightgreen) ![](https://img.shields.io/github/issues/PaddlePaddle/GraphNet?label=open%20issues)    [![](https://img.shields.io/badge/Contribute%20to%20GraphNet-blue)](https://github.com/PaddlePaddle/GraphNet/issues/98)
 
-**GraphNet** is a large-scale dataset of deep learning **computation graphs**, built as a standard benchmark for **tensor compiler** optimization. It provides 2.7K computation graphs extracted from state-of-the-art deep learning models spanning diverse tasks and ML frameworks. With standardized formats and rich metadata, GraphNet enables fair comparison and reproducible evaluation of the general optimization capabilities of tensor compilers, thereby supporting advanced research such as AI for System on compilers (AI for Compiler).
+<h1 align="center">GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research</h1>
 
-<br>
 <div align="center">
-<img src="/pics/Eval_result.png" alt="Violin plots of speedup distributions" width="65%">
+
+![](https://img.shields.io/badge/version-v0.1-brightgreen)
+![](https://img.shields.io/github/issues/PaddlePaddle/GraphNet?label=open%20issues)
+[![Documentation](https://img.shields.io/badge/documentation-blue)](./GraphNet_technical_report.pdf)
+<a href="https://img.shields.io/badge/微信-green?logo=wechat&amp"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
 </div>
 
-Compiler developers can use GraphNet samples to evaluate tensor compilers (e.g., CINN, TorchInductor, TVM) on target tasks. The figure above shows the speedup of two compilers (CINN and TorchInductor) across two tasks (CV and NLP).
+**GraphNet** is a large-scale dataset of deep learning **computation graphs**, built as a standard benchmark for **tensor compiler** optimization. It provides over 2.7K computation graphs extracted from state-of-the-art deep learning models spanning diverse tasks and ML frameworks. With standardized formats and rich metadata, GraphNet enables fair comparison and reproducible evaluation of the general optimization capabilities of tensor compilers, thereby supporting advanced research such as AI for System on compilers.
 
-## 🧱 Dataset Construction
+## News
+- [2025-10-14] ✨ Our technical report is out: a detailed study of dataset construction and compiler benchmarking, introducing the novel performance metrics Speedup Score S(t) and Error-aware Speedup Score ES(t). [📘 GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research](./GraphNet_technical_report.pdf)
+- [2025-8-20] 🚀 The second round of [open contribution tasks](https://github.com/PaddlePaddle/Paddle/issues/74773) was released. (completed ✅)
+- [2025-7-30] 🚀 The first round of [open contribution tasks](https://github.com/PaddlePaddle/GraphNet/issues/44) was released.  (completed ✅)
+## Benchmark Results
+We evaluate two representative tensor compiler backends, CINN (PaddlePaddle) and TorchInductor (PyTorch), on GraphNet's NLP and CV subsets. The evaluation adopts two quantitative metrics proposed in the [GraphNet Technical Report](./GraphNet_technical_report.pdf):
+- **Speedup Score** S(t) — evaluates compiler performance under varying numerical tolerance levels.
+<div align="center">
+  <img src="/pics/St-result.jpg" alt="Speedup Score S_t Results" width="80%">
+</div>
 
-To guarantee the dataset’s overall quality, reproducibility, and cross-compiler compatibility, we define the following construction **constraints**:
+- **Error-aware Speedup Score** ES(t) — further accounts for runtime and compilation errors.
+<div align="center">
+  <img src="/pics/ESt-result.jpg" alt="Error-aware Speedup Score ES_t Results" width="80%">
 
-1. Computation graphs must be executable in imperative (eager) mode.
-2. Computation graphs and their corresponding Python code must support serialization and deserialization.
-3. The full graph can be decomposed into two disjoint subgraphs.
-4. Operator names within each computation graph must be statically parseable.
-5. If custom operators are used, their implementation code must be fully accessible.
+</div>
 
-### Graph Extraction & Validation
+## Quick Start
+This section shows how to evaluate tensor compilers and reproduce benchmark results (for compiler users and developers),
+as well as how to contribute new computation graphs (for GraphNet contributors).
 
-We provide automated extraction and validation tools for constructing this dataset.
+### ⚖️ Compiler Evaluation
+
+**Step 1: Benchmark**
+
+Use graph_net.torch.test_compiler to benchmark GraphNet samples with specific batch and logging configurations:
+
+```bash
+# Set your benchmark directory
+export GRAPH_NET_BENCHMARK_PATH=/home/yourname/graphnet_benchmark/
+
+# Run benchmark
+python -m graph_net.torch.test_compiler \
+  --model-path $GRAPH_NET_EXTRACT_WORKSPACE/model_name/ \
+  --compiler /custom/or/builtin/compiler/ \
+  --device /device/to/execute/ \
+  --warmup /times/to/warmup/ \
+  --trials /times/to/test/ \
+  > $GRAPH_NET_BENCHMARK_PATH/log.log 2>&1
+
+# Note: If --compiler is omitted, PyTorch’s built-in compiler is used by default.
+```
+
+After executing, `graph_net.torch.test_compiler` will:
+1. Running the original model in eager mode to record a baseline.
+2. Compiling the model with the specified backend (e.g., CINN, TVM, Inductor, TensorRT, XLA, BladeDISC).
+3. Executing the compiled model and collecting its runtime and outputs.
+4. Conduct speedup by comparing the compiled results against the baseline (if no execution failure occurs).
+
+**Step 2: Generate JSON Record**
+
+Extract runtime, correctness, and failure information from benchmark logs:
+
+```bash
+python -m graph_net.log2json \
+  --log-file $GRAPH_NET_BENCHMARK_PATH/log.log \
+  --output-dir $GRAPH_NET_BENCHMARK_PATH/JSON_results/
+```
+
+**Step 3: Analysis**
+
+Use `graph_net.violin_analysis` to generate [violin plot](https://en.m.wikipedia.org/wiki/Violin_plot) and `graph_net.S_analysis` to generate S and ES plot based on the JSON results.
+
+```bash
+python -m graph_net.violin_analysis \
+  --benchmark-path $GRAPH_NET_BENCHMARK_PATH/JSON_results/ \
+  --output-dir $GRAPH_NET_BENCHMARK_PATH
+
+python -m graph_net.S_analysis \
+  --benchmark-path $GRAPH_NET_BENCHMARK_PATH/JSON_results/ \
+  --output-dir $GRAPH_NET_BENCHMARK_PATH \
+  --negative-speedup-penalty penalty/power/for/negative/speedup \
+  --fpdb base/penalty/for/severe/errors
+
+# Note: If --negative-speedup-penalty is omitted, p=0 is used by default.
+# If --fpdb, b=0.1 is used by default.
+```
+
+The scripts are designed to process a file structure as `/benchmark_path/category_name/`, and items on x-axis are identified by name of the sub-directories. After executing, several summary plots of result in categories (model tasks, libraries...) will be exported to `$GRAPH_NET_BENCHMARK_PATH`.
+
+### 🧱 Contribute More Samples
+
+GraphNet provides automated tools for graph extraction and validation.
 
 <div align="center">
 <img src="/pics/graphnet_overview.jpg" alt="GraphNet Architecture Overview" width="65%">
@@ -43,17 +115,17 @@ python -m graph_net.torch.validate \
   --model-path $GRAPH_NET_EXTRACT_WORKSPACE/resnet18/
 ```
 
-**Illustration: How does GraphNet extract and construct a computation graph sample on PyTorch?**
+**Illustration – Extraction Workflow**
 
 <div align="center">
-<img src="/pics/graphnet_sample.png" alt="GraphNet Extract Sample" width="65%">
+<img src="/pics/dataset_composition.png" alt="GraphNet Extract Sample" width="65%">
 </div>
 
 * Source code of custom_op is required **only when** corresponding operator is used in the module, and **no specific format** is required.
 
 **Step 1: graph_net.torch.extract**
 
-Import and wrap the model with `graph_net.torch.extract(name=model_name, dynamic=dynamic_mode)()` is all you need:
+Wrap the model with the extractor — that’s all you need:
 
 ```bash
 import graph_net
@@ -80,67 +152,8 @@ python -m graph_net.torch.validate \
 
 All the **construction constraints** will be examined automatically. After passing validation, a unique `graph_hash.txt` will be generated and later checked in CI procedure to avoid redundant.
 
-## ⚖️ Compiler Evaluation
 
-**Step 1: Benchmark**
-
-We use `graph_net.torch.test_compiler` to benchmark GraphNet samples with specific batch and log configurations:
-
-```bash
-# Set your benchmark directory
-export GRAPH_NET_BENCHMARK_PATH=/home/yourname/graphnet_benchmark/
-
-# Run benchmark
-python -m graph_net.torch.test_compiler \
-  --model-path $GRAPH_NET_EXTRACT_WORKSPACE/model_name/ \
-  --compiler /custom/or/builtin/compiler/ \
-  --device /device/to/execute/ \
-  --warmup /times/to/warmup/ \
-  --trials /times/to/test/ \
-  > $GRAPH_NET_BENCHMARK_PATH/log.log 2>&1
-
-# Note: If --compiler is omitted, PyTorch’s built-in compiler is used by default.
-```
-
-After executing, `graph_net.torch.test_compiler` will:
-1. Running the original model in eager mode to record a baseline.
-2. Compiling the model with the specified backend (e.g., CINN, TVM, Inductor, TensorRT, XLA, BladeDISC).
-3. Executing the compiled model and collecting its runtime and outputs.
-4. Conduct speedup by comparing the compiled results against the baseline (if no execution failure occurs).
-
-**Step 2: Generate JSON Record**
-
-This step is to extract information (including failure) from logs in benchmark.
-All the information will be saved to multiple `model_compiler.json` files via:
-
-```bash
-python -m graph_net.log2json \
-  --log-file $GRAPH_NET_BENCHMARK_PATH/log.log \
-  --output-dir $GRAPH_NET_BENCHMARK_PATH/JSON_results/
-```
-
-**Step 3: Analysis**
-
-After processing, we provide `graph_net.violin_analysis` to generate [violin plot](https://en.m.wikipedia.org/wiki/Violin_plot) and `graph_net.S_analysis` to generate S and ES plot based on the JSON results.
-
-```bash
-python -m graph_net.violin_analysis \
-  --benchmark-path $GRAPH_NET_BENCHMARK_PATH/JSON_results/ \
-  --output-dir $GRAPH_NET_BENCHMARK_PATH
-
-python -m graph_net.S_analysis \
-  --benchmark-path $GRAPH_NET_BENCHMARK_PATH/JSON_results/ \
-  --output-dir $GRAPH_NET_BENCHMARK_PATH \
-  --negative-speedup-penalty penalty/power/for/negative/speedup \
-  --fpdb base/penalty/for/severe/errors
-
-# Note: If --negative-speedup-penalty is omitted, p=0 is used by default.
-# If --fpdb, b=0.1 is used by default.
-```
-
-The scripts are designed to process a file structure as `/benchmark_path/category_name/`, and items on x-axis are identified by name of the sub-directories. After executing, several summary plots of result in categories (model tasks, libraries...) will be exported to `$GRAPH_NET_BENCHMARK_PATH`.
-
-## 📌 Roadmap
+## Future Roadmap
 
 1. Scale GraphNet to 10K+ graphs.
 2. Further annotate GraphNet samples into more granular sub-categories
@@ -149,7 +162,7 @@ The scripts are designed to process a file structure as `/benchmark_path/categor
 
 **Vision**: GraphNet aims to lay the foundation for AI for Compiler by enabling **large-scale, systematic evaluation** of tensor compiler optimizations, and providing a **dataset for models to learn** and transfer optimization strategies.
 
-## 💬 GraphNet Community
+## GraphNet Community
 
 You can join our community via following group chats. Welcome to ask any questions about using and building GraphNet.
 
@@ -167,5 +180,17 @@ You can join our community via following group chats. Welcome to ask any questio
 </table>
 </div>
 
-## 🪪 License
-This project is released under the [MIT License](LICENSE).
+## License and Acknowledgement
+
+GraphNet is released under the [MIT License](./LICENSE).
+
+If you find this project helpful, please cite:
+
+```bibtex
+@article{li2025graphnet,
+  title     = {GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research},
+  author    = {Xinqi Li and Yiqun Liu and Shan Jiang and Enrong Zheng and Huaijin Zheng and Wenhao Dai and Haodong Deng and Dianhai Yu and Yanjun Ma},
+  year      = {2025},
+  url       = {https://github.com/PaddlePaddle/GraphNet/blob/develop/GraphNet_technical_report.pdf}
+}
+```
