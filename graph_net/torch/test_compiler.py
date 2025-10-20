@@ -289,6 +289,8 @@ def test_single_model(args):
         if args.compiler == "xla":
             xla_model = get_model(args, "xla")
             compiled_model = compiler(xla_model)
+        elif args.compiler == "unstable_to_stable":
+            compiled_model = compiler(model, args.model_path)
         else:
             compiled_model = compiler(model)
 
