@@ -3,20 +3,19 @@
 
 <div align="center">
 
-![](https://img.shields.io/badge/version-v0.1-brightgreen)
 ![](https://img.shields.io/github/issues/PaddlePaddle/GraphNet?label=open%20issues)
-[![Documentation](https://img.shields.io/badge/documentation-blue)](./GraphNet_technical_report.pdf)
+[![arXiv](https://img.shields.io/badge/arXiv-2510.24035-b31b1b.svg)](https://arxiv.org/abs/2510.24035)
 <a href="https://github.com/user-attachments/assets/125e3494-25c9-4494-9acd-8ad65ca85d03"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
 </div>
 
 **GraphNet** is a large-scale dataset of deep learning **computation graphs**, built as a standard benchmark for **tensor compiler** optimization. It provides over 2.7K computation graphs extracted from state-of-the-art deep learning models spanning diverse tasks and ML frameworks. With standardized formats and rich metadata, GraphNet enables fair comparison and reproducible evaluation of the general optimization capabilities of tensor compilers, thereby supporting advanced research such as AI for System on compilers.
 
 ## 📣 News
-- [2025-10-14] ✨ Our technical report is out: a detailed study of dataset construction and compiler benchmarking, introducing the novel performance metrics Speedup Score S(t) and Error-aware Speedup Score ES(t). [📘 GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research](./GraphNet_technical_report.pdf)
+- [2025-10-14] ✨ Our technical report is out: a detailed study of dataset construction and compiler benchmarking, introducing the novel performance metrics Speedup Score S(t) and Error-aware Speedup Score ES(t). [📘 GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research](https://arxiv.org/abs/2510.24035)
 - [2025-8-20] 🚀 The second round of [open contribution tasks](https://github.com/PaddlePaddle/Paddle/issues/74773) was released. (completed ✅)
 - [2025-7-30] 🚀 The first round of [open contribution tasks](https://github.com/PaddlePaddle/GraphNet/issues/44) was released.  (completed ✅)
 ## 📊 Benchmark Results
-We evaluate two representative tensor compiler backends, CINN (PaddlePaddle) and TorchInductor (PyTorch), on GraphNet's NLP and CV subsets. The evaluation adopts two quantitative metrics proposed in the [Technical Report](./GraphNet_technical_report.pdf):
+We evaluate two representative tensor compiler backends, CINN (PaddlePaddle) and TorchInductor (PyTorch), on GraphNet's NLP and CV subsets. The evaluation adopts two quantitative metrics proposed in the [Technical Report](https://arxiv.org/abs/2510.24035):
 - **Speedup Score** S(t) — evaluates compiler performance under varying numerical tolerance levels.
 <div align="center">
   <img src="/pics/St-result.jpg" alt="Speedup Score S_t Results" width="80%">
@@ -136,10 +135,13 @@ GraphNet is released under the [MIT License](./LICENSE).
 If you find this project helpful, please cite:
 
 ```bibtex
-@misc{li2025graphnet,
-  title     = {GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research},
-  author    = {Xinqi Li and Yiqun Liu and Shan Jiang and Enrong Zheng and Huaijin Zheng and Wenhao Dai and Haodong Deng and Dianhai Yu and Yanjun Ma},
-  year      = {2025},
-  url       = {https://github.com/PaddlePaddle/GraphNet/blob/develop/GraphNet_technical_report.pdf}
+@misc{li2025graphnetlargescalecomputationalgraph,
+      title={GraphNet: A Large-Scale Computational Graph Dataset for Tensor Compiler Research}, 
+      author={Xinqi Li and Yiqun Liu and Shan Jiang and Enrong Zheng and Huaijin Zheng and Wenhao Dai and Haodong Deng and Dianhai Yu and Yanjun Ma},
+      year={2025},
+      eprint={2510.24035},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2510.24035}, 
 }
 ```
