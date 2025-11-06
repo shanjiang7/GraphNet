@@ -30,7 +30,7 @@ class UnstableToStableBackend(GraphCompilerBackend):
     **Stable API reference link:**
     """
 
-    def fft_irfft_to_irfft(self, gm):
+    def _impl_unstable_to_stable_irfft(self, gm):
         def replace_in_graph(graph_mod):
             # Register stable implementation on GraphModule, codegen can use self.irfft
             try:
@@ -60,7 +60,7 @@ class UnstableToStableBackend(GraphCompilerBackend):
 
         return gm
 
-    def avg_pool2d_to_avg_pool2d(self, gm):
+    def _impl_unstable_to_stable_avg_pool2d(self, gm):
         """
         Convert torch._C._nn.avg_pool2d to torch.nn.functional.avg_pool2d
         """
@@ -82,12 +82,36 @@ class UnstableToStableBackend(GraphCompilerBackend):
 
         return gm
 
+    def _impl_unstable_to_stable_rfft(self, gm):
+        """
+        Convert torch._C._fft.fft_rfft to torch.fft.rfft
+        """
+        # Update graph nodes: replace torch._C._fft.fft_rfft with torch.fft.rfft
+        issue_nodes = (
+            node
+            for node in gm.graph.nodes
+            if node.op == "call_function"
+            if hasattr(node.target, "__module__")
+            if node.target.__module__ == "torch._C._fft"
+            if hasattr(node.target, "__name__")
+            if node.target.__name__ == "fft_rfft"
+        )
+        for node in issue_nodes:
+            node.target = torch.fft.rfft
+
+        # Recompile the graph
+        gm.recompile()
+
+        return gm
+
     def unstable_to_stable(self, gm):
-        # Convert based on unstable_api environment variable
-        if self.unstable_api == "torch._C._nn.avg_pool2d":
-            gm = self.avg_pool2d_to_avg_pool2d(gm)
-        elif self.unstable_api == "torch._C._fft.fft_irfft":
-            gm = self.fft_irfft_to_irfft(gm)
+        methods = (
+            name
+            for name in vars(type(self)).keys()
+            if name.startswith("_impl_unstable_to_stable")
+        )
+        for method in methods:
+            gm = getattr(self, method)(gm)
         return gm
 
     def check_unstable_api(self, gm):
