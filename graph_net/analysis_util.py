@@ -164,6 +164,7 @@ def parse_logs_to_data(log_file: str) -> list:
         List of data dictionaries, each containing configuration, correctness,
         performance, and result information for a single model-compiler run.
     """
+
     try:
         with open(log_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
@@ -330,10 +331,13 @@ def scan_all_folders(benchmark_path: str) -> dict:
     """
     Unified entry point that supports log files and directories:
       - If benchmark_path is a log file (.log or .txt) → parse it directly and return data as a single curve.
+
       - If benchmark_path is a directory → scan for .log and .txt files in the directory,
         each log file becomes a curve.
+
     Returns dict[curve_name] -> list_of_samples
     """
+
     # Handle single log file
     if os.path.isfile(benchmark_path):
         print(f"Detected log file: '{benchmark_path}'")
@@ -648,3 +652,47 @@ def calculate_s_scores(
     print(f"    - pi: {pi}")
 
     return s_scores, s_scores_fake_degrad
+
+
+def check_sample_correctness(sample: dict, t_key: int) -> tuple[bool, str]:
+    """
+    Check if a sample is correct at the given tolerance level.
+
+    Args:
+        sample: Sample data dictionary
+        t_key: Tolerance level
+
+    Returns:
+        Tuple of (is_correct, fail_type)
+        - is_correct: True if sample is correct at this tolerance
+        - fail_type: Error type if not correct, None if correct
+    """
+    performance_data = sample.get("performance", {})
+    fail_type = performance_data.get("failure")
+
+    # If there's already a failure type, return it
+    if fail_type is not None:
+        return False, fail_type
+
+    # Check correctness based on datatype and tolerance
+    datatype_data = performance_data.get("datatype", {})
+    eager_dtypes = datatype_data.get("eager", [])
+    compiled_dtypes = datatype_data.get("compiled", [])
+
+    # Check if datatypes match and are valid
+    if not (eager_dtypes and eager_dtypes == compiled_dtypes and len(eager_dtypes) > 0):
+        return False, "accuracy"
+
+    correctness_data = sample.get("correctness", {})
+    output_count = len(correctness_data.get("[equal]", []))
+
+    if len(eager_dtypes) != output_count:
+        return False, "accuracy"
+
+    # Check all outputs for correctness
+    is_correct = all(
+        get_correctness(eager_dtypes[i], t_key, correctness_data, i)
+        for i in range(output_count)
+    )
+
+    return is_correct, None if is_correct else "accuracy"
