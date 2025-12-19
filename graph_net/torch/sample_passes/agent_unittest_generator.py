@@ -1,8 +1,11 @@
 import re
+import sys
+import subprocess
 import ast
 import inspect
 import jinja2
 import textwrap
+import tempfile
 from pathlib import Path
 from typing import Literal
 from collections import namedtuple
@@ -11,6 +14,7 @@ import torch
 
 from graph_net import imp_util
 from graph_net.sample_pass.sample_pass import SamplePass
+from graph_net.sample_pass.resumable_sample_pass_mixin import ResumableSamplePassMixin
 from graph_net.tensor_meta import TensorMeta
 
 
@@ -20,6 +24,7 @@ import unittest
 {%- endif -%}
 {{"\n"}}
 import torch
+from torch import device
 
 
 {% macro get_input_tensor_instance(tensor_meta, device) -%}
@@ -124,21 +129,26 @@ class AgentUnittestGenerator:
     def __init__(
         self,
         model_path: str,
+        output_name: str,
         output_dir: str,
         device: Literal["auto", "cpu", "cuda"] = "auto",
         generate_main: bool = False,
+        try_run: bool = False,
         data_input_predicator_filepath: str = None,
         data_input_predicator_class_name: str = None,
     ):
         self.model_path = Path(model_path).resolve()
+        self.output_name = output_name
         self.output_dir = Path(output_dir)
         self.device = self._choose_device(device)
         self.generate_main = generate_main
+        self.try_run = try_run and generate_main
         self.data_input_predicator = self._make_data_input_predicator(
             data_input_predicator_filepath, data_input_predicator_class_name
         )
 
     def generate(self):
+        print(f"[AgentUnittestGenerator] Generate unittest for {self.model_path}")
         model_name = "".join(
             word.capitalize() for word in re.split(r"[_.-]", self.model_path.name)
         )
@@ -152,7 +162,6 @@ class AgentUnittestGenerator:
             input_tensor_metas,
             weight_tensor_metas,
         ) = self._get_input_and_weight_tensor_metas(input_arg_names, weight_arg_names)
-        print(f"{input_arg_names=}")
         graph_module_desc = GraphModuleDescriptor(
             device=self.device,
             generate_main=self.generate_main,
@@ -166,7 +175,8 @@ class AgentUnittestGenerator:
             ),
         )
         unittest = self._render_template(graph_module_desc)
-        self._write_to_file(unittest)
+        if self._try_to_run_unittest(unittest):
+            self._write_to_file(unittest, self.output_dir)
 
     def _choose_device(self, device) -> str:
         if device in ["cpu", "cuda"]:
@@ -180,15 +190,28 @@ class AgentUnittestGenerator:
             module = imp_util.load_module(data_input_predicator_filepath)
             cls = getattr(module, data_input_predicator_class_name)
             return cls(config={})
-        return lambda *args, **kwargs: False
+        return lambda *args, **kwargs: True
 
-    def _write_to_file(self, unittest):
-        output_path = Path(self.output_dir) / f"{self.model_path.name}_test.py"
+    def _write_to_file(self, unittest, output_dir):
+        output_path = Path(output_dir) / self.output_name
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(unittest, encoding="utf-8")
         print(
             f"[AgentUnittestGenerator] Generate unittest: {output_path} (device={self.device})"
         )
+        return output_path
+
+    def _try_to_run_unittest(self, unittest):
+        if not self.try_run:
+            return True
+
+        with tempfile.TemporaryDirectory(prefix="unittest_") as temp_dir:
+            output_path = self._write_to_file(unittest, temp_dir)
+            result = subprocess.run(
+                [sys.executable, output_path],
+                check=True,
+            )
+            return result.returncode == 0
 
     def _get_input_and_weight_arg_names(self, graph_module):
         input_arg_names = []
@@ -282,12 +305,11 @@ class AgentUnittestGenerator:
         return template.render(graph_module_desc=graph_module_desc)
 
 
-class AgentUnittestGeneratorPass(SamplePass):
+class AgentUnittestGeneratorPass(SamplePass, ResumableSamplePassMixin):
     """SamplePass wrapper to generate Torch unittests via model_path_handler."""
 
     def __init__(self, config=None):
         super().__init__(config)
-        print(f"[AgentUnittestGeneratorPass] {self.config=}")
 
     def declare_config(
         self,
@@ -295,20 +317,39 @@ class AgentUnittestGeneratorPass(SamplePass):
         output_dir: str,
         device: str = "auto",
         generate_main: bool = False,
+        try_run: bool = False,
         data_input_predicator_filepath: str = None,
         data_input_predicator_class_name: str = None,
+        resume: bool = False,
+        limits_handled_models: int = None,
     ):
         pass
 
     def __call__(self, rel_model_path: str):
-        print(f"[AgentUnittestGeneratorPass] {rel_model_path=}")
+        self.resumable_handle_sample(rel_model_path)
+
+    def sample_handled(self, rel_model_path: str) -> bool:
+        dst_model_path = Path(self.config["output_dir"]) / rel_model_path
+        if not dst_model_path.exists():
+            return False
+        output_name = self._get_output_name(rel_model_path)
+        num_model_py_files = len(list(dst_model_path.rglob(output_name)))
+        assert num_model_py_files <= 1
+        return num_model_py_files == 1
+
+    def _get_output_name(self, rel_model_path: str):
+        return f"{Path(rel_model_path).name}_test.py"
+
+    def resume(self, rel_model_path: str):
         model_path_prefix = Path(self.config["model_path_prefix"])
         output_dir = Path(self.config["output_dir"])
         generator = AgentUnittestGenerator(
             model_path=str(model_path_prefix / rel_model_path),
+            output_name=self._get_output_name(rel_model_path),
             output_dir=str(output_dir / rel_model_path),
             device=self.config["device"],
             generate_main=self.config["generate_main"],
+            try_run=self.config["try_run"],
             data_input_predicator_filepath=self.config[
                 "data_input_predicator_filepath"
             ],
