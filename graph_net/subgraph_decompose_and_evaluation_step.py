@@ -325,6 +325,7 @@ def run_decomposer_for_single_model(
                 "output_dir": output_dir,
                 "split_positions": split_positions,
                 "group_head_and_tail": False,
+                "use_all_inputs": True,
                 "chain_style": False,
             },
         },
@@ -430,6 +431,7 @@ def generate_unittest_for_single_model(
             "custom_extractor_config": {
                 "output_dir": output_dir,
                 "subgraph_range": subgraph_range,
+                "use_all_inputs": True,
                 "device": "auto",
                 "tolerance": tolerance,
                 "try_run": True,
@@ -472,10 +474,10 @@ def generate_unittest(decompose_config, pass_id, output_dir):
         if decompose_config.decompose_method == "fixed-start":
             subgraph_range = [0, model_record.uniform_split_positions[subgraph_idx + 1]]
         else:
-            subgraph_range = [
-                model_record.uniform_split_positions[subgraph_idx],
-                model_record.uniform_split_positions[subgraph_idx + 1],
+            subgraph_range = model_record.uniform_split_positions[
+                subgraph_idx : subgraph_idx + 2
             ]
+            assert False, "Not supported!"
 
         rectified_model_path = get_rectfied_model_path(original_path)
         assert os.path.exists(
@@ -528,7 +530,7 @@ def generate_initial_tasks(args):
     initial_incorrect_models = get_ranged_incorrect_models(
         args.tolerance, args.log_file
     )
-    for model_path in initial_incorrect_models:
+    for model_path in sorted(initial_incorrect_models):
         model_name = get_model_name_with_subgraph_tag(model_path)
         model_name2record[model_name] = ModelRecord(
             original_path=model_path,
@@ -697,6 +699,8 @@ def execute_decomposition_phase(decompose_config, pass_id, workspace):
             f"[WARN] {len(failed_decomposition_models)} models failed to decompose.",
             flush=True,
         )
+        for idx, model_path in enumerate(failed_decomposition_models):
+            print(f"- [{idx}] {model_path=}", flush=True)
 
     running_state.collect_decomposed_subgraphs(decomposed_samples_dir)
     decompose_config.max_subgraph_size = max_subgraph_size
@@ -718,7 +722,7 @@ def print_incorrect_models(decompose_config, pass_id, log_prompt):
         f"{log_prompt} number of incorrect subgraphs: {len(incorrect_models)}; number of incorrect original models: {len(original_model_paths)}",
         flush=True,
     )
-    for idx, model_path in enumerate(incorrect_models):
+    for idx, model_path in enumerate(sorted(incorrect_models)):
         print(f"- [{idx}] {model_path}", flush=True)
 
 
@@ -736,7 +740,7 @@ def print_summary_and_suggestion(decompose_config, pass_id):
         )
     elif decompose_config.max_subgraph_size <= 1:
         print(
-            ">>> [Conclusion] Decomposition has reached the minimal granularity (max_subgraph_size = 1) after {pass_id - 1} steps.",
+            f">>> [Conclusion] Decomposition has reached the minimal granularity (max_subgraph_size = 1) after {pass_id} steps.",
             flush=True,
         )
     print("=" * 80, flush=True)
